@@ -1,8 +1,8 @@
 port module Main exposing (Flag, Model, Msg, main)
 
 import Browser
-import Html exposing (Html, button, div, h1, input, label, pre, section, table, td, text, textarea, th, tr)
-import Html.Attributes exposing (class, id, type_)
+import Html exposing (Html, button, div, h1, input, label, pre, section, text, textarea)
+import Html.Attributes exposing (class, classList, id, type_)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
 
@@ -249,12 +249,10 @@ view m =
                         div []
                             [ div
                                 []
-                                [ case m2.submitting of
-                                    True ->
-                                        div [ class "" ] [ text "送信中" ]
-
-                                    False ->
-                                        div [] []
+                                [ div [ class "modal", classList [ ( "is-active", m2.submitting ) ] ]
+                                    [ div [ class "modal-background" ] []
+                                    , div [ class "modal-content loader_animation" ] [ text "送信中" ]
+                                    ]
                                 , div [ class "columns" ]
                                     [ div [ class "box column" ]
                                         [ h1 [ class "subtitle is-3" ]
