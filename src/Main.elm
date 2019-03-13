@@ -391,10 +391,14 @@ view m =
                                 ]
                             ]
 
-                NotLoggedIn _ ->
+                NotLoggedIn m2 ->
                     Html.map NotLoggedInMsg <|
                         div []
-                            [ div [ class "box" ]
+                            [ div [ class "modal", classList [ ( "is-active", m2.submitting ) ] ]
+                                [ div [ class "modal-background" ] []
+                                , div [ class "modal-content loader_animation" ] [ text "送信中" ]
+                                ]
+                            , div [ class "box" ]
                                 [ div []
                                     [ div [ class "field" ]
                                         [ label [ class "label" ] [ text "email" ]
