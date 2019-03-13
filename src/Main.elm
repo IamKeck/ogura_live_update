@@ -245,6 +245,55 @@ view m =
         content =
             case m of
                 LoggedIn m2 ->
+                    let
+                        subtitle =
+                            case m2.currentPage of
+                                Staging ->
+                                    "確認用環境(Staging)"
+
+                                Production ->
+                                    "本公開環境(Production)"
+
+                        currentArticle =
+                            case m2.currentPage of
+                                Staging ->
+                                    m2.currentStaging
+
+                                Production ->
+                                    m2.currentProduction
+
+                        onInputEvent =
+                            case m2.currentPage of
+                                Staging ->
+                                    InputStaging
+
+                                Production ->
+                                    InputProduction
+
+                        submitEvent =
+                            case m2.currentPage of
+                                Staging ->
+                                    SubmitStaging
+
+                                Production ->
+                                    SubmitProduction
+
+                        textareaId =
+                            case m2.currentPage of
+                                Staging ->
+                                    "input_staging"
+
+                                Production ->
+                                    "input_production"
+
+                        currentInput =
+                            case m2.currentPage of
+                                Staging ->
+                                    m2.inputStaging
+
+                                Production ->
+                                    m2.inputProduction
+                    in
                     Html.map LoggedInMsg <|
                         div []
                             [ div
@@ -256,82 +305,33 @@ view m =
                                 , div [ class "columns" ]
                                     [ div [ class "box column" ]
                                         [ h1 [ class "subtitle is-3" ]
-                                            [ text <|
-                                                case m2.currentPage of
-                                                    Staging ->
-                                                        "Staging"
-
-                                                    Production ->
-                                                        "Production"
-                                            ]
+                                            [ text subtitle ]
                                         , pre [ class "current_article" ]
-                                            [ text <|
-                                                case m2.currentPage of
-                                                    Staging ->
-                                                        m2.currentStaging
-
-                                                    Production ->
-                                                        m2.currentProduction
-                                            ]
+                                            [ text currentArticle ]
                                         ]
                                     , div [ class "box column" ]
                                         [ div [ class "switch_button_wrapper" ]
                                             [ button [ onClick SwitchPage, class "button" ]
-                                                [ text "switch" ]
+                                                [ text "切替" ]
                                             ]
                                         , Html.Keyed.node "div"
                                             []
-                                            [ ( case m2.currentPage of
-                                                    Production ->
-                                                        "p"
-
-                                                    Staging ->
-                                                        "s"
+                                            [ ( textareaId
                                               , textarea
                                                     [ class "article_textarea"
-                                                    , onInput <|
-                                                        case m2.currentPage of
-                                                            Staging ->
-                                                                InputStaging
-
-                                                            Production ->
-                                                                InputProduction
-                                                    , id <|
-                                                        case m2.currentPage of
-                                                            Staging ->
-                                                                "input_staging"
-
-                                                            Production ->
-                                                                "input_production"
+                                                    , onInput onInputEvent
+                                                    , id textareaId
                                                     ]
-                                                    [ text <|
-                                                        case m2.currentPage of
-                                                            Staging ->
-                                                                m2.inputStaging
-
-                                                            Production ->
-                                                                m2.inputProduction
+                                                    [ text currentInput
                                                     ]
                                               )
                                             ]
                                         , div [ class "" ]
                                             [ button
-                                                [ onClick <|
-                                                    case m2.currentPage of
-                                                        Staging ->
-                                                            SubmitStaging
-
-                                                        Production ->
-                                                            SubmitProduction
+                                                [ onClick submitEvent
                                                 , class "button is-success"
                                                 ]
-                                                [ text <|
-                                                    case m2.currentPage of
-                                                        Staging ->
-                                                            "submit staging"
-
-                                                        Production ->
-                                                            "submit production"
+                                                [ text "送信"
                                                 ]
                                             ]
                                         ]
