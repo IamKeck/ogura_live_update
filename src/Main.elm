@@ -19,6 +19,7 @@ type Model
     | NotLoggedIn
         { mail : String
         , password : String
+        , submitting : Bool
         }
 
 
@@ -94,7 +95,7 @@ init isLoggedIn =
         )
 
     else
-        ( NotLoggedIn { mail = "", password = "" }, Cmd.none )
+        ( NotLoggedIn { mail = "", password = "", submitting = False }, Cmd.none )
 
 
 main : Program Flag Model Msg
@@ -230,7 +231,13 @@ update msg model =
                             ( NotLoggedIn { model2 | password = s }, Cmd.none )
 
                         Login ->
-                            ( model, login ( model2.mail, model2.password ) )
+                            if model2.submitting then
+                                ( model, Cmd.none )
+
+                            else
+                                ( NotLoggedIn { model2 | submitting = True }
+                                , login ( model2.mail, model2.password )
+                                )
 
                 _ ->
                     ( model, Cmd.none )
