@@ -149,14 +149,12 @@
             });
             app.ports.submitStaging.subscribe((stg) => {
                 db.ref("/staging").set(stg).then(() => {
-                    document.getElementById("input_staging").value = "";
                     alert("更新が完了しました");
                     app.ports.submitDone.send(null);
                 });
             });
             app.ports.submitProduction.subscribe((prd) => {
                 db.ref("/production").set(prd).then(() => {
-                    document.getElementById("input_production").value = "";
                     alert("更新が完了しました");
                     app.ports.submitDone.send(null);
                 });

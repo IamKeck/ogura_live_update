@@ -2,9 +2,10 @@ port module Main exposing (Flag, Model, Msg, main)
 
 import Browser
 import Html exposing (Html, button, div, h1, input, label, pre, section, text, textarea)
-import Html.Attributes exposing (class, classList, id, type_)
+import Html.Attributes exposing (class, classList, type_)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
+import Random
 
 
 type Model
@@ -15,6 +16,7 @@ type Model
         , inputProduction : String
         , currentPage : ValueType
         , submitting : Bool
+        , textareaKey : TextareaKey
         }
     | NotLoggedIn
         { mail : String
@@ -42,6 +44,7 @@ type LoggedInMsg
     | UpdateCurrentStatus DbData
     | SubmitDone
     | SwitchPage
+    | GotKey TextareaKey
     | Logout
 
 
@@ -53,6 +56,10 @@ type NotLoggedInMsg
 
 type alias Flag =
     Bool
+
+
+type alias TextareaKey =
+    { staging : String, production : String }
 
 
 type alias DbData =
@@ -90,8 +97,9 @@ init isLoggedIn =
             , inputProduction = ""
             , currentPage = Staging
             , submitting = False
+            , textareaKey = TextareaKey "" ""
             }
-        , Cmd.none
+        , Random.generate (GotKey >> LoggedInMsg) <| generateTextareaKey (TextareaKey "" "")
         )
 
     else
@@ -106,6 +114,23 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
+
+
+generateTextareaKey : TextareaKey -> Random.Generator TextareaKey
+generateTextareaKey oldKey =
+    let
+        keyGen =
+            Random.map String.fromInt <| Random.int Random.minInt Random.maxInt
+    in
+    Random.map2 TextareaKey keyGen keyGen
+        |> Random.andThen
+            (\newKey ->
+                if newKey.staging == oldKey.staging || newKey.production == oldKey.production then
+                    generateTextareaKey oldKey
+
+                else
+                    Random.constant newKey
+            )
 
 
 subscriptions : Model -> Sub Msg
@@ -186,7 +211,8 @@ update msg model =
                                                     | submitting = False
                                                     , inputStaging = ""
                                                 }
-                                            , Cmd.none
+                                            , Random.generate (GotKey >> LoggedInMsg) <|
+                                                generateTextareaKey model2.textareaKey
                                             )
 
                                         Production ->
@@ -195,7 +221,8 @@ update msg model =
                                                     | submitting = False
                                                     , inputProduction = ""
                                                 }
-                                            , Cmd.none
+                                            , Random.generate (GotKey >> LoggedInMsg) <|
+                                                generateTextareaKey model2.textareaKey
                                             )
 
                         SwitchPage ->
@@ -213,6 +240,9 @@ update msg model =
                                                 Staging
                                 in
                                 ( LoggedIn { model2 | currentPage = newPage }, Cmd.none )
+
+                        GotKey key ->
+                            ( LoggedIn { model2 | textareaKey = key }, Cmd.none )
 
                         Logout ->
                             ( model, logout () )
@@ -285,13 +315,13 @@ view m =
                                 Production ->
                                     SubmitProduction
 
-                        textareaId =
+                        textareaKey =
                             case m2.currentPage of
                                 Staging ->
-                                    "input_staging"
+                                    m2.textareaKey.staging
 
                                 Production ->
-                                    "input_production"
+                                    m2.textareaKey.production
 
                         currentInput =
                             case m2.currentPage of
@@ -323,11 +353,10 @@ view m =
                                             ]
                                         , Html.Keyed.node "div"
                                             []
-                                            [ ( textareaId
+                                            [ ( textareaKey
                                               , textarea
                                                     [ class "article_textarea"
                                                     , onInput onInputEvent
-                                                    , id textareaId
                                                     ]
                                                     [ text currentInput
                                                     ]
