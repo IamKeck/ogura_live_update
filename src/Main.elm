@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, button, div, h1, input, label, pre, section, table, td, text, textarea, th, tr)
 import Html.Attributes exposing (class, id, type_)
 import Html.Events exposing (onClick, onInput)
+import Html.Keyed
 
 
 type Model
@@ -12,7 +13,8 @@ type Model
         , currentProduction : String
         , inputStaging : String
         , inputProduction : String
-        , submitting : Maybe ValueType
+        , currentPage : ValueType
+        , submitting : Bool
         }
     | NotLoggedIn
         { mail : String
@@ -38,6 +40,7 @@ type LoggedInMsg
     | SubmitProduction
     | UpdateCurrentStatus DbData
     | SubmitDone
+    | SwitchPage
     | Logout
 
 
@@ -84,7 +87,8 @@ init isLoggedIn =
             , currentProduction = ""
             , inputStaging = ""
             , inputProduction = ""
-            , submitting = Nothing
+            , currentPage = Staging
+            , submitting = False
             }
         , Cmd.none
         )
@@ -115,10 +119,10 @@ subscriptions m =
                     Sub.batch
                         [ listenDb (UpdateCurrentStatus >> LoggedInMsg)
                         , case m2.submitting of
-                            Just _ ->
+                            True ->
                                 submitDone <| always (LoggedInMsg SubmitDone)
 
-                            Nothing ->
+                            False ->
                                 Sub.none
                         ]
 
@@ -142,45 +146,72 @@ update msg model =
                             ( LoggedIn { model2 | inputProduction = s }, Cmd.none )
 
                         SubmitStaging ->
-                            ( LoggedIn { model2 | submitting = Just Staging }
-                            , submitStaging model2.inputStaging
+                            ( LoggedIn { model2 | submitting = True }
+                            , if model2.submitting then
+                                Cmd.none
+
+                              else
+                                submitStaging model2.inputStaging
                             )
 
                         SubmitProduction ->
-                            ( LoggedIn { model2 | submitting = Just Production }
-                            , submitProduction model2.inputProduction
+                            ( LoggedIn { model2 | submitting = True }
+                            , if model2.submitting then
+                                Cmd.none
+
+                              else
+                                submitProduction model2.inputProduction
                             )
 
                         UpdateCurrentStatus s ->
-                            Debug.log (Debug.toString s) <|
-                                ( LoggedIn
-                                    { model2
-                                        | currentStaging = s.staging
-                                        , currentProduction = s.production
-                                    }
-                                , Cmd.none
-                                )
+                            ( LoggedIn
+                                { model2
+                                    | currentStaging = s.staging
+                                    , currentProduction = s.production
+                                }
+                            , Cmd.none
+                            )
 
                         SubmitDone ->
                             case model2.submitting of
-                                Nothing ->
+                                False ->
                                     ( model, Cmd.none )
 
-                                Just Staging ->
-                                    ( LoggedIn
-                                        { model2
-                                            | submitting = Nothing
-                                        }
-                                    , Cmd.none
-                                    )
+                                True ->
+                                    case model2.currentPage of
+                                        Staging ->
+                                            ( LoggedIn
+                                                { model2
+                                                    | submitting = False
+                                                    , inputStaging = ""
+                                                }
+                                            , Cmd.none
+                                            )
 
-                                Just Production ->
-                                    ( LoggedIn
-                                        { model2
-                                            | submitting = Nothing
-                                        }
-                                    , Cmd.none
-                                    )
+                                        Production ->
+                                            ( LoggedIn
+                                                { model2
+                                                    | submitting = False
+                                                    , inputProduction = ""
+                                                }
+                                            , Cmd.none
+                                            )
+
+                        SwitchPage ->
+                            if model2.submitting then
+                                ( model, Cmd.none )
+
+                            else
+                                let
+                                    newPage =
+                                        case model2.currentPage of
+                                            Staging ->
+                                                Production
+
+                                            Production ->
+                                                Staging
+                                in
+                                ( LoggedIn { model2 | currentPage = newPage }, Cmd.none )
 
                         Logout ->
                             ( model, logout () )
@@ -217,24 +248,95 @@ view m =
                     Html.map LoggedInMsg <|
                         div []
                             [ div
-                                [ class "columns" ]
+                                []
                                 [ case m2.submitting of
-                                    Just _ ->
+                                    True ->
                                         div [ class "" ] [ text "送信中" ]
 
-                                    Nothing ->
+                                    False ->
                                         div [] []
-                                , div [ class "box column" ]
-                                    [ h1 [ class "subtitle is-3" ] [ text "Staging" ]
-                                    , pre [ class "current_article" ] [ text m2.currentStaging ]
-                                    , div [ class "" ] [ textarea [ onInput InputStaging, id "input_staging" ] [] ]
-                                    , div [ class "" ] [ button [ onClick SubmitStaging ] [ text "submit staging" ] ]
-                                    ]
-                                , div [ class "box column" ]
-                                    [ h1 [ class "subtitle is-3" ] [ text "Production" ]
-                                    , pre [ class "current_article" ] [ text m2.currentProduction ]
-                                    , div [ class "" ] [ textarea [ onInput InputProduction, id "input_production" ] [] ]
-                                    , div [ class "" ] [ button [ onClick SubmitProduction ] [ text "submit production" ] ]
+                                , div [ class "columns" ]
+                                    [ div [ class "box column" ]
+                                        [ h1 [ class "subtitle is-3" ]
+                                            [ text <|
+                                                case m2.currentPage of
+                                                    Staging ->
+                                                        "Staging"
+
+                                                    Production ->
+                                                        "Production"
+                                            ]
+                                        , pre [ class "current_article" ]
+                                            [ text <|
+                                                case m2.currentPage of
+                                                    Staging ->
+                                                        m2.currentStaging
+
+                                                    Production ->
+                                                        m2.currentProduction
+                                            ]
+                                        ]
+                                    , div [ class "box column" ]
+                                        [ div [ class "switch_button_wrapper" ]
+                                            [ button [ onClick SwitchPage, class "button" ]
+                                                [ text "switch" ]
+                                            ]
+                                        , Html.Keyed.node "div"
+                                            []
+                                            [ ( case m2.currentPage of
+                                                    Production ->
+                                                        "p"
+
+                                                    Staging ->
+                                                        "s"
+                                              , textarea
+                                                    [ class "article_textarea"
+                                                    , onInput <|
+                                                        case m2.currentPage of
+                                                            Staging ->
+                                                                InputStaging
+
+                                                            Production ->
+                                                                InputProduction
+                                                    , id <|
+                                                        case m2.currentPage of
+                                                            Staging ->
+                                                                "input_staging"
+
+                                                            Production ->
+                                                                "input_production"
+                                                    ]
+                                                    [ text <|
+                                                        case m2.currentPage of
+                                                            Staging ->
+                                                                m2.inputStaging
+
+                                                            Production ->
+                                                                m2.inputProduction
+                                                    ]
+                                              )
+                                            ]
+                                        , div [ class "" ]
+                                            [ button
+                                                [ onClick <|
+                                                    case m2.currentPage of
+                                                        Staging ->
+                                                            SubmitStaging
+
+                                                        Production ->
+                                                            SubmitProduction
+                                                , class "button is-success"
+                                                ]
+                                                [ text <|
+                                                    case m2.currentPage of
+                                                        Staging ->
+                                                            "submit staging"
+
+                                                        Production ->
+                                                            "submit production"
+                                                ]
+                                            ]
+                                        ]
                                     ]
                                 ]
                             , div []
