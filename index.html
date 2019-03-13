@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.4/css/bulma.css">
+    <title>記事更新</title>
+    <style>
+        .box {
+            margin-bottom: 1.5rem;
+        }
+
+        .current_article {
+            margin-bottom: 30px;
+            height: 57vh;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+
+</div>
+
+</body>
+<script src="https://www.gstatic.com/firebasejs/5.8.6/firebase.js"></script>
+<script src="/dist/main.js"></script>
+<script>
+    // Initialize Firebase
+    var config = {
+        apiKey: "AIzaSyDMOAjIDYqnjIYnn6lct-aMNruZkuFLmMU",
+        authDomain: "ogura-web.firebaseapp.com",
+        databaseURL: "https://ogura-web.firebaseio.com",
+        projectId: "ogura-web",
+        storageBucket: "ogura-web.appspot.com",
+        messagingSenderId: "989127659790"
+    };
+    firebase.initializeApp(config);
+    const db = firebase.database();
+    const allData = db.ref("/");
+    const auth = firebase.auth();
+    let app = null;
+    auth.onAuthStateChanged((user) => {
+        const is_logged_in = user !== null;
+        if (app == null) {
+            app = Elm.Main.init({flags: is_logged_in, node: document.getElementById("main")});
+            app.ports.login.subscribe((email_and_password) => {
+                auth.signInWithEmailAndPassword(email_and_password[0], email_and_password[1]);
+            });
+            app.ports.logout.subscribe(() => {
+                auth.signOut();
+            });
+            allData.on("value", (snapshot) => {
+                app.ports.listenDb.send(snapshot.val());
+            });
+            app.ports.submitStaging.subscribe((stg) => {
+                db.ref("/staging").set(stg).then(() => {
+                    document.getElementById("input_staging").value = "";
+                    app.ports.submitDone.send(null);
+                });
+            });
+            app.ports.submitProduction.subscribe((prd) => {
+                db.ref("/production").set(prd).then(() => {
+                    document.getElementById("input_production").value = "";
+                    app.ports.submitDone.send(null);
+                });
+            });
+        } else {
+            app.ports.listenLoginStatus.send(is_logged_in);
+            allData.once("value", (snapshot) => {
+                app.ports.listenDb.send(snapshot.val());
+            });
+        }
+    });
+</script>
+</html>
