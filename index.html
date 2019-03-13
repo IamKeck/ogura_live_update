@@ -139,7 +139,11 @@
         if (app == null) {
             app = Elm.Main.init({flags: is_logged_in, node: document.getElementById("main")});
             app.ports.login.subscribe((email_and_password) => {
-                auth.signInWithEmailAndPassword(email_and_password[0], email_and_password[1]);
+                auth.signInWithEmailAndPassword(email_and_password[0], email_and_password[1])
+                    .catch(() => {
+                        alert("ログインに失敗しました");
+                        app.ports.loginFailed.send(null);
+                    });
             });
             app.ports.logout.subscribe(() => {
                 auth.signOut();

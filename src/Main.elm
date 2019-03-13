@@ -52,6 +52,7 @@ type NotLoggedInMsg
     = InputMail String
     | InputPassword String
     | Login
+    | LoginFailed
 
 
 type alias Flag =
@@ -85,6 +86,9 @@ port logout : () -> Cmd msg
 
 
 port submitDone : (() -> msg) -> Sub msg
+
+
+port loginFailed : (() -> msg) -> Sub msg
 
 
 init : Flag -> ( Model, Cmd Msg )
@@ -138,8 +142,12 @@ subscriptions m =
     let
         additionalSub =
             case m of
-                NotLoggedIn _ ->
-                    Sub.none
+                NotLoggedIn m2 ->
+                    if m2.submitting then
+                        loginFailed <| always (NotLoggedInMsg LoginFailed)
+
+                    else
+                        Sub.none
 
                 LoggedIn m2 ->
                     Sub.batch
@@ -268,6 +276,11 @@ update msg model =
                                 ( NotLoggedIn { model2 | submitting = True }
                                 , login ( model2.mail, model2.password )
                                 )
+
+                        LoginFailed ->
+                            ( NotLoggedIn { model2 | submitting = False }
+                            , Cmd.none
+                            )
 
                 _ ->
                     ( model, Cmd.none )
