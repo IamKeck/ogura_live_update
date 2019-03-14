@@ -1,10 +1,11 @@
 port module Main exposing (Flag, Model, Msg, main)
 
 import Browser
-import Html exposing (Html, button, div, h1, input, label, pre, section, text, textarea)
-import Html.Attributes exposing (class, classList, type_)
+import Html exposing (Html, button, div, h1, pre, section, text, textarea)
+import Html.Attributes exposing (class, classList)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
+import Login
 import Random
 
 
@@ -18,11 +19,7 @@ type Model
         , submitting : Bool
         , textareaKey : TextareaKey
         }
-    | NotLoggedIn
-        { mail : String
-        , password : String
-        , submitting : Bool
-        }
+    | NotLoggedIn Login.Model
 
 
 type ValueType
@@ -32,7 +29,7 @@ type ValueType
 
 type Msg
     = LoggedInMsg LoggedInMsg
-    | NotLoggedInMsg NotLoggedInMsg
+    | NotLoggedInMsg Login.Msg
     | LoginStatusChanged Bool
 
 
@@ -46,13 +43,6 @@ type LoggedInMsg
     | SwitchPage
     | GotKey TextareaKey
     | Logout
-
-
-type NotLoggedInMsg
-    = InputMail String
-    | InputPassword String
-    | Login
-    | LoginFailed
 
 
 type alias Flag =
@@ -79,16 +69,10 @@ port submitStaging : String -> Cmd msg
 port submitProduction : String -> Cmd msg
 
 
-port login : ( String, String ) -> Cmd msg
-
-
 port logout : () -> Cmd msg
 
 
 port submitDone : (() -> msg) -> Sub msg
-
-
-port loginFailed : (() -> msg) -> Sub msg
 
 
 init : Flag -> ( Model, Cmd Msg )
@@ -107,7 +91,11 @@ init isLoggedIn =
         )
 
     else
-        ( NotLoggedIn { mail = "", password = "", submitting = False }, Cmd.none )
+        let
+            ( model, cmd ) =
+                Login.init
+        in
+        ( NotLoggedIn model, Cmd.map NotLoggedInMsg cmd )
 
 
 main : Program Flag Model Msg
@@ -143,11 +131,7 @@ subscriptions m =
         additionalSub =
             case m of
                 NotLoggedIn m2 ->
-                    if m2.submitting then
-                        loginFailed <| always (NotLoggedInMsg LoginFailed)
-
-                    else
-                        Sub.none
+                    Sub.map NotLoggedInMsg <| Login.subscriptions m2
 
                 LoggedIn m2 ->
                     Sub.batch
@@ -261,26 +245,11 @@ update msg model =
         NotLoggedInMsg msg2 ->
             case model of
                 NotLoggedIn model2 ->
-                    case msg2 of
-                        InputMail s ->
-                            ( NotLoggedIn { model2 | mail = s }, Cmd.none )
-
-                        InputPassword s ->
-                            ( NotLoggedIn { model2 | password = s }, Cmd.none )
-
-                        Login ->
-                            if model2.submitting then
-                                ( model, Cmd.none )
-
-                            else
-                                ( NotLoggedIn { model2 | submitting = True }
-                                , login ( model2.mail, model2.password )
-                                )
-
-                        LoginFailed ->
-                            ( NotLoggedIn { model2 | submitting = False }
-                            , Cmd.none
-                            )
+                    let
+                        ( model3, cmd ) =
+                            Login.update msg2 model2
+                    in
+                    ( NotLoggedIn model3, Cmd.map NotLoggedInMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
@@ -392,47 +361,7 @@ view m =
                             ]
 
                 NotLoggedIn m2 ->
-                    Html.map NotLoggedInMsg <|
-                        div []
-                            [ div [ class "modal", classList [ ( "is-active", m2.submitting ) ] ]
-                                [ div [ class "modal-background" ] []
-                                , div [ class "modal-content loader_animation" ] [ text "送信中" ]
-                                ]
-                            , div [ class "box" ]
-                                [ div []
-                                    [ div [ class "field" ]
-                                        [ label [ class "label" ] [ text "email" ]
-                                        , div [ class "control" ]
-                                            [ input
-                                                [ onInput InputMail
-                                                , class "input"
-                                                ]
-                                                []
-                                            ]
-                                        ]
-                                    , div [ class "field" ]
-                                        [ label [ class "label" ] [ text "password" ]
-                                        , div [ class "control" ]
-                                            [ input
-                                                [ onInput InputPassword
-                                                , class "input"
-                                                , type_ "password"
-                                                ]
-                                                []
-                                            ]
-                                        ]
-                                    , div [ class "field" ]
-                                        [ div [ class "control" ]
-                                            [ button
-                                                [ onClick Login
-                                                , class "button is-primary"
-                                                ]
-                                                [ text "ログイン" ]
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ]
+                    Html.map NotLoggedInMsg <| Login.view m2
     in
     div [ class "container" ]
         [ div [ class "header" ] [ h1 [ class "title is-2" ] [ text "記事管理ページ" ] ]
