@@ -8,8 +8,8 @@ import Random
 
 
 type alias Model =
-    { currentStaging : String
-    , currentProduction : String
+    { currentStaging : Maybe String
+    , currentProduction : Maybe String
     , inputStaging : String
     , inputProduction : String
     , currentPage : ValueType
@@ -60,8 +60,8 @@ port submitDone : (() -> msg) -> Sub msg
 
 init : ( Model, Cmd Msg )
 init =
-    ( { currentStaging = ""
-      , currentProduction = ""
+    ( { currentStaging = Nothing
+      , currentProduction = Nothing
       , inputStaging = ""
       , inputProduction = ""
       , currentPage = Staging
@@ -114,8 +114,8 @@ update msg model =
 
         UpdateCurrentStatus s ->
             ( { model
-                | currentStaging = s.staging
-                , currentProduction = s.production
+                | currentStaging = Just s.staging
+                , currentProduction = Just s.production
               }
             , Cmd.none
             )
@@ -231,7 +231,7 @@ view model =
                     [ h1 [ class "subtitle is-3" ]
                         [ text subtitle ]
                     , pre [ class "current_article" ]
-                        [ text currentArticle ]
+                        [ text <| Maybe.withDefault "読込中..." currentArticle ]
                     ]
                 , div [ class "box column" ]
                     [ div [ class "switch_button_wrapper" ]
